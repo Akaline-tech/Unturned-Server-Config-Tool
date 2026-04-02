@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="USCT/USCT.vcxproj" Id="7f63ed8d-1fcd-4258-8145-442d913690c4" />
+</Solution>
