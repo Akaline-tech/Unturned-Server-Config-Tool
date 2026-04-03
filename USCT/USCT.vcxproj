@@ -145,6 +145,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="serverconfig.h" />
     <ClInclude Include="setting.h" />
+    <ClInclude Include="uilt.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gui.cpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="MapName.cpp" />
     <ClCompile Include="ModConfig.cpp" />
     <ClCompile Include="serverconfig.cpp" />
+    <ClCompile Include="uilt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="USCT.rc" />

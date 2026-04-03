@@ -5,41 +5,10 @@
 #include <string>
 #include <cstring>
 #include <filesystem>
-#include <vector>
-
+#include "uilt.h"
 namespace fs = std::filesystem;
 
 static std::string CONFIG_FILE;
-
-static std::string FindServerConfigPath()
-{
-    for (char drive = 'C'; drive <= 'Z'; drive++)
-    {
-        std::vector<std::string> roots =
-        {
-            "\\steam",
-            "\\Steam",
-            "\\SteamLibrary"
-        };
-
-        for (const auto& root : roots)
-        {
-            std::string path =
-                std::string(1, drive) +
-                ":" +
-                root +
-                "\\steamapps\\common\\U3DS\\Servers\\Default\\Server\\Commands.dat";
-
-            if (fs::exists(path))
-            {
-                return path;
-            }
-        }
-    }
-
-    // fallback 当前目录
-    return "Commands.dat";
-}
 
 static void SafeCopy(char* dest, const std::string& src, size_t size)
 {
@@ -89,14 +58,10 @@ static void SetPerspectiveFromString(const std::string& value)
         sc_Perspective_item = 2;
 }
 
-// =====================================================
-// 保存
-// =====================================================
-
 void SaveServerConfig()
 {
     if (CONFIG_FILE.empty())
-        CONFIG_FILE = FindServerConfigPath();
+        CONFIG_FILE = FindConfigPath("\\steamapps\\common\\U3DS\\Servers\\Default\\Server\\Commands.dat");
 
     std::ofstream file(CONFIG_FILE);
 
@@ -121,7 +86,6 @@ void SaveServerConfig()
         << GetModeString()
         << "\n";
 
-    // PVP 关闭 -> 留空
     if (sc_PVP)
         file << "";
     else
@@ -145,6 +109,14 @@ void SaveServerConfig()
         << sc_Loadout
         << "\n";
 
+    file << "Owner "
+        << sc_Owner
+        << "\n";
+
+    file << "Gslt "
+        << sc_GSLT
+        << "\n";
+
     file << "Welcome "
         << sc_Welcome
         << "\n";
@@ -152,14 +124,10 @@ void SaveServerConfig()
     file.close();
 }
 
-// =====================================================
-// 加载
-// =====================================================
-
 void LoadServerConfig()
 {
     if (CONFIG_FILE.empty())
-        CONFIG_FILE = FindServerConfigPath();
+        CONFIG_FILE = FindConfigPath("\\steamapps\\common\\U3DS\\Servers\\Default\\Server\\Commands.dat");
 
     std::ifstream file(CONFIG_FILE);
 
@@ -267,6 +235,18 @@ void LoadServerConfig()
         {
             iss >> value;
             SafeCopy(sc_Loadout, value, sizeof(sc_Loadout));
+        }
+
+        else if (key == "OWNER")
+        {
+            iss >> value;
+            SafeCopy(sc_Owner, value, sizeof(sc_Owner));
+        }
+
+        else if (key == "GSLT")
+        {
+            iss >> value;
+            SafeCopy(sc_GSLT, value, sizeof(sc_GSLT));
         }
 
         else if (key == "WELCOME")

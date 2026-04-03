@@ -4,43 +4,13 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include "uilt.h"
 
 namespace fs = std::filesystem;
 
 std::vector<std::string> FileIDs;
 static std::string CONFIG_FILE;
 
-static std::string FindWorkshopConfigPath()
-{
-    for (char drive = 'C'; drive <= 'Z'; ++drive)
-    {
-        std::vector<std::string> roots =
-        {
-            "\\steam",
-            "\\Steam",
-            "\\SteamLibrary"
-        };
-
-        for (const auto& root : roots)
-        {
-            std::string path =
-                std::string(1, drive) +
-                ":" +
-                root +
-                "\\steamapps\\common\\U3DS\\Servers\\Default\\WorkshopDownloadConfig.json";
-
-            if (fs::exists(path))
-                return path;
-        }
-    }
-
-    // fallback 当前目录
-    return "WorkshopDownloadConfig.json";
-}
-
-// =====================================================
-// 工具函数
-// =====================================================
 static void ParseIDsFromText(const std::string& text)
 {
     FileIDs.clear();
@@ -82,7 +52,7 @@ static void ParseIDsFromText(const std::string& text)
 bool LoadFileIDs()
 {
     if (CONFIG_FILE.empty())
-        CONFIG_FILE = FindWorkshopConfigPath();
+        CONFIG_FILE = FindConfigPath("\\steamapps\\common\\U3DS\\Servers\\Default\\WorkshopDownloadConfig.json");
 
     if (!fs::exists(CONFIG_FILE))
         return false;
@@ -102,9 +72,8 @@ bool LoadFileIDs()
 bool SaveFileIDs()
 {
     if (CONFIG_FILE.empty())
-        CONFIG_FILE = FindWorkshopConfigPath();
+        CONFIG_FILE = FindConfigPath("\\steamapps\\common\\U3DS\\Servers\\Default\\WorkshopDownloadConfig.json");
 
-    // 先读取原始文件内容
     std::ifstream infile(CONFIG_FILE);
     std::string content;
     if (infile.is_open())
@@ -115,7 +84,6 @@ bool SaveFileIDs()
         infile.close();
     }
 
-    // 找到 File_IDs 段
     size_t keyPos = content.find("\"File_IDs\"");
     if (keyPos != std::string::npos)
     {
@@ -135,13 +103,11 @@ bool SaveFileIDs()
             }
             ids << "  ]";
 
-            // 替换原有 File_IDs
             content.replace(lb, rb - lb + 1, ids.str());
         }
     }
     else
     {
-        // 如果文件里没有 File_IDs，创建新的 JSON 内容
         content = "{\n  \"File_IDs\": [\n";
         for (size_t i = 0; i < FileIDs.size(); ++i)
         {
@@ -152,7 +118,6 @@ bool SaveFileIDs()
         content += "  ]\n}\n";
     }
 
-    // 保存回文件
     std::ofstream outfile(CONFIG_FILE, std::ios::trunc);
     if (!outfile.is_open())
         return false;

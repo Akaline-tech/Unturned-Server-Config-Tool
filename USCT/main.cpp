@@ -1,14 +1,14 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
-
+#include <chrono>
+#include <thread>
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 
 #include "gui.h"
 #include "serverconfig.h"
-#include "setting.h"
 #include "ModConfig.h"
 
 #pragma comment(lib, "d3d11.lib")
@@ -61,21 +61,21 @@ bool CreateDeviceD3D(HWND hWnd)
     );
 }
 
-int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {
-    WNDCLASSEX wc = {sizeof(WNDCLASSEX),CS_CLASSDC,WndProc,0,0,hInstance,nullptr,nullptr,nullptr,nullptr,_T("ImGuiApp"),nullptr};
+    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0, 0, hInstance, nullptr, nullptr, nullptr, nullptr, _T("ImGuiApp"), nullptr };
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
     wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(101));
     RegisterClassEx(&wc);
 
-    HWND hwnd = CreateWindow(wc.lpszClassName,_T("Unturned Server Config Tool"),WS_OVERLAPPED |WS_CAPTION |WS_SYSMENU |WS_MINIMIZEBOX,100,100,534,500,nullptr,nullptr,wc.hInstance,nullptr);
+    HWND hwnd = CreateWindow(wc.lpszClassName, _T("Unturned Server Config Tool"), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 100, 100, 590, 513, nullptr, nullptr, wc.hInstance, nullptr);
 
     CreateDeviceD3D(hwnd);
     CreateRenderTarget();
     sc_PVP = true;
     LoadServerConfig();
     LoadFileIDs();
-    
+
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
 
@@ -83,42 +83,61 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE,LPSTR,int)
     ImGui::CreateContext();
 
     ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX11_Init(g_pd3dDevice,g_pd3dDeviceContext);
+    ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
     gui::init();
 
     MSG msg = {};
 
+    const float target_fps = 60.0f;
+    const float target_frame_time = 1.0f / (target_fps * 2);
+
+    auto last_time = std::chrono::high_resolution_clock::now();
+
     while (msg.message != WM_QUIT)
     {
-        if (PeekMessage(&msg,nullptr,0,0,PM_REMOVE))
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
             continue;
         }
 
+        auto current_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> delta_time = current_time - last_time;
+        float frame_time = delta_time.count();
+
+        ImGui::GetIO().DeltaTime = frame_time;
+
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
-
         ImGui::NewFrame();
+
         gui::render();
+
         ImGui::Render();
 
-        const float clear_color[4] = {0.1f,0.1f,0.1f,1.0f};
-
-        g_pd3dDeviceContext->OMSetRenderTargets(1,&g_mainRenderTargetView,nullptr);
-
-        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView,clear_color);
+        const float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
+        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
+        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);
 
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        g_pSwapChain->Present(1,0);
+        g_pSwapChain->Present(1, 0);
+
+        auto frame_end_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> frame_duration = frame_end_time - current_time;
+        float sleep_time = target_frame_time - frame_duration.count();
+        if (sleep_time > 0)
+        {
+            std::this_thread::sleep_for(std::chrono::duration<float>(sleep_time));
+        }
+
+        last_time = current_time;
     }
 
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
-
     ImGui::DestroyContext();
 
     return 0;
