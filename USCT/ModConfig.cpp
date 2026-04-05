@@ -138,3 +138,4 @@ void RemoveFileID(size_t index)
     if (index < FileIDs.size())
         FileIDs.erase(FileIDs.begin() + index);
 }
+

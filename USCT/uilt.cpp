@@ -1,7 +1,9 @@
-#include <filesystem>
+﻿#include <filesystem>
 #include <string>
 #include <vector>
+#pragma comment(lib, "winhttp.lib")
 #include "uilt.h"
+
 namespace fs = std::filesystem;
 std::string FindConfigPath(std::string filepath)
 {

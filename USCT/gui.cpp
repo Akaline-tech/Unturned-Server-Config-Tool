@@ -6,22 +6,35 @@
 #include "serverconfig.h"
 #include <Windows.h>
 #include "ModConfig.h"
+#include "uilt.h"
+#include <future>
+#include "MapName.h"
+
+static std::future<std::vector<WorkshopMod>> future;
+static std::future<std::vector<WorkshopMod>> g_future;
+static std::vector<WorkshopMod> g_results;
+static bool g_loading = false;
+static std::string g_html;
 
 #define tip(A,B,C) ImGui::SameLine();ImGui::TextColored(A, B);if (ImGui::IsItemHovered()){ImGui::SetTooltip(C);}
-
+void DrawWatermark(const char* text, ImU32 color);
 void gui_setting_menu(ImVec2 center);
 void gui_TextMenu_menu(ImVec2 center, const char name[16], const char text[256]);
-
 void DetectLanguageBySystemLanguage();
 
-namespace gui{
+namespace gui {
     static float slider_value = 0.5f;
     static int counter = 0;
     static bool open_helpme_popup = false;
     static bool open_about_popup = false;
     static bool open_setting_popup = false;
+    static std::vector<std::string> g_MapList;
+    // 存储指向 g_MapList 中字符串的指针，方便传入 ImGui 的 const char*[] 重载
+    static std::vector<const char*> g_MapListCStr;
+    static int g_SelectedMapIndex = 0;
+    static std::vector<std::string> g_MapListUtf8;
 
-    void init(){
+    void init() {
         ImFontConfig config;
         ImGuiIO& io = ImGui::GetIO();
         ImGuiContext& g = *ImGui::GetCurrentContext();
@@ -48,6 +61,49 @@ namespace gui{
         style.SeparatorTextBorderSize = 1.7f;
 
         DetectLanguageBySystemLanguage();
+        if (g_MapList.empty())
+        {
+            g_MapList = GetMapList();
+
+            // 填充指针数组，确保指针指向的内存持续有效（指向 g_MapList 中的 c_str）
+            g_MapListUtf8.clear();
+            g_MapListUtf8.reserve(g_MapList.size());
+            g_MapListCStr.clear();
+            for (const auto& src : g_MapList)
+            {
+                // ANSI/系统编码 -> UTF-16
+                int wlen = MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, nullptr, 0);
+                std::wstring wstr;
+                if (wlen > 0) {
+                    wstr.resize(wlen);
+                    MultiByteToWideChar(CP_ACP, 0, src.c_str(), -1, &wstr[0], wlen);
+                }
+
+                // UTF-16 -> UTF-8
+                int u8len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                std::string u8;
+                if (u8len > 0) {
+                    u8.resize(u8len);
+                    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &u8[0], u8len, nullptr, nullptr);
+                    if (!u8.empty() && u8.back() == '\0') u8.pop_back();
+                }
+
+                g_MapListUtf8.push_back(std::move(u8));
+                g_MapListCStr.push_back(g_MapListUtf8.back().c_str());
+            }
+
+            g_SelectedMapIndex = 0;
+            for (int i = 0; i < (int)g_MapList.size(); i++)
+            {
+                if (g_MapList[i] == sc_Map)
+                {
+                    g_SelectedMapIndex = i;
+                    break;
+                }
+            }
+        }
+
+
     }
 
     void render() {
@@ -99,8 +155,8 @@ namespace gui{
         ImVec2 center = viewport->GetCenter();
 
         gui_setting_menu(center);
-        gui_TextMenu_menu(center, u8"关于",u8"开发者 Aria1337\n为我的朋友\"无聊白宁\"制作");
-        gui_TextMenu_menu(center, u8"帮我", u8"如何获取地图名称?\n  在D:\\steam\\steamapps\\common\\Unturned\\Maps\n内的文件夹就是地图名称\n  创意工坊地图在D:\\steam\\steamapps\\workshop\\content\\304930\n内找到对应ID的文件夹打开后看到的文件夹就是地图名称");
+        gui_TextMenu_menu(center, u8"关于", u8"开发者 Aria1337\n为我的朋友\"无聊白宁\"制作\n以及其他贡献者(排名不分先后)\n福浮, 魔理沙, 星月, 芥酱, 洛希凌 · 莉安\nunknow084player, 可乐加冰 , 灵梦, 奈酱, 童tong, 千梨少\n");
+        gui_TextMenu_menu(center, u8"帮我", u8"如何获取地图名称?\n  在\\steam\\steamapps\\common\\Unturned\\Maps\n内的文件夹就是地图名称\n  创意工坊地图在D:\\steam\\steamapps\\workshop\\content\\304930\n内找到对应ID的文件夹打开后看到的文件夹就是地图名称");
 
         if (ImGui::BeginTabBar("MainTabs"))
         {
@@ -109,10 +165,12 @@ namespace gui{
                 if (ImGui::Button(t(u8"加载配置"), ImVec2(275, 0)))
                     LoadServerConfig();
                 ImGui::SameLine();
-                if (ImGui::Button(t(u8"保存配置"),ImVec2(275,0)))
+
+                if (ImGui::Button(t(u8"保存配置"), ImVec2(275, 0)))
                     SaveServerConfig();
+
                 ImGui::BeginChild("Child1", ImVec2(0, 0), false);
-                if (ImGui::BeginTable("base_config_table",2,ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_BordersInnerV))
+                if (ImGui::BeginTable("base_config_table", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_BordersInnerV))
                 {
                     ImGui::TableSetupColumn(t(u8"标签"), ImGuiTableColumnFlags_WidthFixed, 150.0f);
                     ImGui::TableSetupColumn(t(u8"控件"), ImGuiTableColumnFlags_WidthStretch);
@@ -122,27 +180,45 @@ namespace gui{
                     ImGui::Text(t(u8"名称"));
                     ImGui::TableSetColumnIndex(1);
                     ImGui::InputText("##名称", sc_Name, sizeof(sc_Name));
-                    tip(ImVec4(0.3f,0.3f,0.3f,1.0f),"(?)", t(u8"服务器名称 允许使用非英文文本"))
-                    
-                    ImGui::TableNextRow();
+                    tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"服务器名称 允许使用非英文文本"))
+
+                        ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"端口"));
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::InputText("##端口", sc_Port, sizeof(sc_Port));
-                    tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"服务器端口 只能是五位数!"))
+                    if (ImGui::InputText("##端口", sc_Port, sizeof(sc_Port), ImGuiInputTextFlags_CharsDecimal))
+                    {
+                        int port = atoi(sc_Port);
+                        if (port < 16000)
+                            strcpy_s(sc_Port, "16000");
+                        else if (port > 65535)
+                            strcpy_s(sc_Port, "65535");
+                    }
+                    tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"服务器端口 允许的范围16000到65535"))
 
-                    ImGui::TableNextRow();
+                        ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"最大玩家数量"));
                     ImGui::TableSetColumnIndex(1);
                     ImGui::InputText("##最大玩家数量", sc_Maxplayer, sizeof(sc_Maxplayer));
                     tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"服务器允许的最大玩家数量上限"))
 
-                    ImGui::TableNextRow();
+                        ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"地图"));
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::InputText("##地图", sc_Map, sizeof(sc_Map));
+
+                    if (!g_MapListCStr.empty())
+                    {
+                        if (ImGui::Combo(u8"##地图", &g_SelectedMapIndex, g_MapListCStr.data(), (int)g_MapListCStr.size()))
+                        {
+                            strcpy_s(sc_Map, sizeof(sc_Map), g_MapList[g_SelectedMapIndex].c_str());
+                        }
+                    }
+                    else
+                    {
+                        ImGui::Text(t(u8"无可用地图"));
+                    }
 
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
@@ -159,21 +235,21 @@ namespace gui{
                     ImGui::Combo("##视角", &sc_Perspective_item, perspective_items.c_str());
                     tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"是否允许切换视角或固定视角"))
 
-                    ImGui::TableNextRow();
+                        ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"允许PVP"));
                     ImGui::TableSetColumnIndex(1);
                     ImGui::Checkbox("##允许PVP", &sc_PVP);
                     tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"是否允许玩家互相攻击"))
 
-                    ImGui::TableNextRow();
+                        ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"作弊"));
                     ImGui::TableSetColumnIndex(1);
                     ImGui::Checkbox("##作弊", &sc_Cheats);
                     tip(ImVec4(0.3f, 0.3f, 0.3f, 1.0f), "(?)", t(u8"是否允许使用/day /give等指令"))
 
-                    ImGui::EndTable();
+                        ImGui::EndTable();
                 }
                 ImGui::SeparatorText(t(u8"可选项"));
                 if (ImGui::BeginTable("base_config_table2", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_BordersInnerV))
@@ -181,7 +257,7 @@ namespace gui{
                     ImGui::TableSetupColumn(t(u8"标签"), ImGuiTableColumnFlags_WidthFixed, 150.0f);
                     ImGui::TableSetupColumn(t(u8"控件"), ImGuiTableColumnFlags_WidthStretch);
 
-                        ImGui::TableNextRow();
+                    ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text(t(u8"密码"));
                     ImGui::TableSetColumnIndex(1);
@@ -251,7 +327,7 @@ namespace gui{
 
                             ImGui::TableSetColumnIndex(1);
                             ImGui::PushID(static_cast<int>(i));
-                            if (ImGui::Button(t(u8"删除"),ImVec2(60,0)))
+                            if (ImGui::Button(t(u8"删除"), ImVec2(60, 0)))
                             {
                                 RemoveFileID(i);
                                 ImGui::PopID();
@@ -281,16 +357,18 @@ namespace gui{
                 }ImGui::EndChild();
                 ImGui::EndTabItem();
             }
-
             ImGui::EndTabBar();
         }
 
         ImGui::End();
+#if _DEBUG
+        DrawWatermark("bili 1k32 - DEBUG", IM_COL32(255, 255, 255, 1));
+#endif
     }
 }
 
 void gui_setting_menu(ImVec2 center) {
-	
+
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(t(u8"设置"), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         static int language_item = setting::language - 1;
@@ -308,7 +386,7 @@ void gui_setting_menu(ImVec2 center) {
     }
 }
 
-void gui_TextMenu_menu(ImVec2 center,const char name[16], const char text[256]) {
+void gui_TextMenu_menu(ImVec2 center, const char name[16], const char text[256]) {
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     if (ImGui::BeginPopupModal(t(name), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 
@@ -337,5 +415,36 @@ void DetectLanguageBySystemLanguage()
     else
     {
         setting::language = english;
+    }
+}
+
+void DrawWatermark(const char* text, ImU32 color)
+{
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 win_pos = viewport->Pos;
+    ImVec2 win_size = viewport->Size;
+
+    ImDrawList* draw_list = ImGui::GetForegroundDrawList();
+    float font_size = 24.0f;
+    float spacing_x = 180.0f;
+    float spacing_y = 150.0f;
+    float angle = 0.5f;
+
+    float cos_a = cos(angle);
+    float sin_a = sin(angle);
+
+    ImFont* font = ImGui::GetFont();
+
+    for (float y = -win_size.y; y < win_size.y * 2; y += spacing_y)
+    {
+        for (float x = -win_size.x; x < win_size.x * 2; x += spacing_x)
+        {
+            ImVec2 pos(x, y); // 文字目标位置
+            int vtx_begin = draw_list->_VtxCurrentIdx;
+            draw_list->AddText(font, font_size, pos, color, text);
+            int vtx_end = draw_list->_VtxCurrentIdx;
+            ImVec2 pivot = pos;
+            ImGui::ShadeVertsTransformPos(draw_list, vtx_begin, vtx_end, pivot, cos_a, sin_a, pivot);
+        }
     }
 }

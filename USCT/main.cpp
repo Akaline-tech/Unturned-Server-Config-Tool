@@ -6,7 +6,6 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
-
 #include "gui.h"
 #include "serverconfig.h"
 #include "ModConfig.h"
@@ -68,11 +67,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(101));
     RegisterClassEx(&wc);
 
-    HWND hwnd = CreateWindow(wc.lpszClassName, _T("Unturned Server Config Tool"), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 100, 100, 590, 513, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = CreateWindow(wc.lpszClassName, _T("Unturned Server Config Tool - v1.0.2"), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, 100, 100, 590, 540, nullptr, nullptr, wc.hInstance, nullptr);
 
     CreateDeviceD3D(hwnd);
     CreateRenderTarget();
-    sc_PVP = true;
     LoadServerConfig();
     LoadFileIDs();
 

@@ -37,6 +37,7 @@ namespace lang
         { u8"欢迎语", u8"Welcome Message" },
         { u8"服务器所有者", u8"Server Owner" },
         { u8"GSLT", u8"GSLT" },//占位用
+        { u8"无可用地图", u8"No maps available" },
 
         { u8"模组配置", u8"Mod Config" },
         { u8"加载配置", u8"Load Config" },
@@ -54,20 +55,20 @@ namespace lang
         { u8"第一人称", u8"first" },
         { u8"第三人称", u8"third" },
 
-        { u8"开发者 Aria1337\n为我的朋友\"无聊白宁\"制作", u8"Developer Aria1337\nMade for my friend “Bored BaiNing”" },
+        { u8"开发者 Aria1337\n为我的朋友\"无聊白宁\"制作\n以及其他贡献者(排名不分先后)\n福浮, 魔理沙, 星月, 芥酱, 洛希凌 · 莉安\nunknow084player, 可乐加冰 , 灵梦, 奈酱, 童tong, 千梨少\n", u8"Developer Aria1337\nMade for my friend “Bored BaiNing”" },
         { u8"这个配置太复杂了呢~ 请耐心等待更新哦 喵~", u8"This config is a bit too complicated~ Please be patient updates, nya~" },
 
         { u8"不是模组名称", u8"Not Mod Name" },
         { u8"服务器名称 允许使用非英文文本", u8"Server name (non-English text allowed)" },
         { u8"服务器允许的最大玩家数量上限", u8"Maximum number of players allowed on the server" },
         { u8"是否允许玩家互相攻击", u8"Whether players are allowed to attack each other" },
-        { u8"服务器端口 只能是五位数!", u8"Server port must be a five-digit number!" },
+        { u8"服务器端口 允许的范围16000到45000", u8"Server port only 16000 to 45000 allowed" },
         { u8"是否允许使用/day /give等指令", u8"Whether commands like /day and /give are allowed" },
         { u8"是否允许切换视角或固定视角", u8"Whether switching view modes or fixed view is allowed" },
         { u8"初始物资 只允许输入Id 使用\"/\"分隔", u8"Starting items: only itemIDs allowed, separated by \"/\"" },
         { u8"服务器的所有者 只允许输入数字SteamID 只允许一个有所有者", u8"server owner: only numeric SteamID allowed & only one owner" }, 
         { u8"游戏服务器登录令牌 建立公开游戏服务器的必要条件\n根据\"内网穿透工具\"的不同可以选择不填", u8"Game Server Login Token : A prerequisite for setting up a public game server\nDepending on the \"NAT traversal\" method, this field may be left blank" },
-        { u8"如何获取地图名称?\n  在D:\\steam\\steamapps\\common\\Unturned\\Maps\n内的文件夹就是地图名称\n  创意工坊地图在D:\\steam\\steamapps\\workshop\\content\\304930\n内找到对应ID的文件夹打开后看到的文件夹就是地图名称", u8"How do I find the map name?\n  The folder located at D:\\steam\\steamapps\\common\\Unturned\\Maps\n is the map name.\n  For Workshop maps, go to \nD:\\steam\\steamapps\\workshop\\content\\304930\n and open the folder corresponding to the map ID\nthe folder you see inside is the map name." }
+        { u8"如何获取地图名称?\n  在\\steam\\steamapps\\common\\Unturned\\Maps\n内的文件夹就是地图名称\n  创意工坊地图在D:\\steam\\steamapps\\workshop\\content\\304930\n内找到对应ID的文件夹打开后看到的文件夹就是地图名称", u8"How do I find the map name?\n  The folder located at D:\\steam\\steamapps\\common\\Unturned\\Maps\n is the map name.\n  For Workshop maps, go to \nD:\\steam\\steamapps\\workshop\\content\\304930\n and open the folder corresponding to the map ID\nthe folder you see inside is the map name." }
     };
 
     inline const char* get(const std::string& key)
